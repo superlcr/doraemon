@@ -114,8 +114,8 @@ const handleInteraction = async function (req, res) {
     }
 
 
-    // "chat" command - 触发远程任务（聊天任务）
-    if (name === 'chat') {
+    // "ppt" command - 触发远程任务（PPT生成任务）
+    if (name === 'ppt') {
       try {
         await handleRemoteTaskCommand(body, res);
         return; // handleRemoteTaskCommand 已经发送了响应

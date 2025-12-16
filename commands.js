@@ -61,10 +61,10 @@ const CHALLENGE_COMMAND = {
   contexts: [0, 2],
 };
 
-// Chat command - 触发远程聊天任务
-const CHAT_COMMAND = {
-  name: 'chat',
-  description: '触发远程聊天任务',
+// PPT command - 触发远程PPT生成任务
+const PPT_COMMAND = {
+  name: 'ppt',
+  description: '触发远程PPT生成任务',
   options: [
     {
       type: 3, // STRING 类型，支持长文本
@@ -95,6 +95,6 @@ const REMOTE_TASK_COMMAND = {
   contexts: [0, 1, 2],
 };
 
-const ALL_COMMANDS = [TEST_COMMAND, CHALLENGE_COMMAND, CHAT_COMMAND, REMOTE_TASK_COMMAND];
+const ALL_COMMANDS = [TEST_COMMAND, CHALLENGE_COMMAND, PPT_COMMAND, REMOTE_TASK_COMMAND];
 
 InstallGlobalCommands(process.env.APP_ID, ALL_COMMANDS);
