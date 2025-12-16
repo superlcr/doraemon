@@ -15,7 +15,7 @@ import { handleRemoteTaskCommand, handleRemoteServiceCallback } from './remote-b
 // Create an express app
 const app = express();
 // Get port, or default to 3000
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 // To keep track of our active games
 const activeGames = {};
 

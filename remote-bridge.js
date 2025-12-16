@@ -1,7 +1,11 @@
 import 'dotenv/config';
-import { DiscordRequest } from './utils.js';
+import { DiscordRequest, configureProxy } from './utils.js';
 import { InteractionResponseType } from 'discord-interactions';
-import { fetch, ProxyAgent, setGlobalDispatcher } from 'undici';
+import undici from 'undici';
+import fs from 'fs/promises';
+
+const { fetch, FormData } = undici;
+// File 是 Node.js 18+ 的全局 API，不需要从 undici 导入
 
 /**
  * 远程服务桥接模块
@@ -26,9 +30,8 @@ async function discordWebhookRequest(url, options = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
 
-  // 使用与DiscordRequest相同的代理配置
-  const proxyAgent = new ProxyAgent('http://127.0.0.1:7897');
-  setGlobalDispatcher(proxyAgent);
+  // 配置代理（如果启用）
+  configureProxy();
 
   try {
     const response = await fetch(url, {
@@ -43,6 +46,62 @@ async function discordWebhookRequest(url, options = {}) {
 
     clearTimeout(timeoutId);
     return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+}
+
+/**
+ * 发送带本地文件附件的Discord消息（可选地回复某条消息）
+ * @param {string} channelId - 频道ID
+ * @param {string|null} messageId - 要回复的消息ID（可选）
+ * @param {string} content - 文本内容
+ * @param {string} filePath - 本地文件路径
+ */
+async function sendDiscordMessageWithFile(channelId, messageId, content, filePath) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
+
+  // 配置代理（如果启用）
+  configureProxy();
+
+  try {
+    // 读取本地文件
+    const fileBuffer = await fs.readFile(filePath);
+    const fileName = filePath.split('/').pop() || 'file.dat';
+
+    const form = new FormData();
+    const payload = {
+      content,
+    };
+
+    if (messageId) {
+      payload.message_reference = {
+        message_id: messageId,
+      };
+    }
+
+    form.append('payload_json', JSON.stringify(payload));
+    form.append('files[0]', new File([fileBuffer], fileName));
+
+    const res = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bot ${process.env.DISCORD_TOKEN}`,
+      },
+      body: form,
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`发送带文件的消息失败: ${res.status} ${errorText}`);
+    }
+
+    return res;
   } catch (error) {
     clearTimeout(timeoutId);
     throw error;
@@ -136,29 +195,11 @@ export async function sendTaskCallbackToDiscord(taskId, result, isError = false)
   const elapsedSeconds = (elapsedTime / 1000).toFixed(2);
 
   let content;
-  if (isError) {
-    const errorText = typeof result === 'string' 
-      ? result 
-      : (result.message || result.error || JSON.stringify(result));
-    content = `❌ <@${userId}> 任务执行失败！\n` +
-              `⏱️ 耗时: ${elapsedSeconds}秒\n` +
-              `📝 错误信息: ${errorText}`;
-  } else {
-    const resultText = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
-    // 限制消息长度（Discord限制2000字符）
-    const maxLength = 1500;
-    const resultDisplay = resultText.length > maxLength 
-      ? resultText.substring(0, maxLength) + '...\n(消息过长，已截断)'
-      : resultText;
-    
-    content = `✅ <@${userId}> 任务执行完成！\n` +
-              `⏱️ 耗时: ${elapsedSeconds}秒\n` +
-              `📊 结果:\n\`\`\`json\n${resultDisplay}\n\`\`\``;
-  }
-
   try {
-    // 回复"任务已启动"的消息
-    if (messageId) {
+    if (isError) {
+      content = `❌ <@${userId}> 任务执行失败！\n` +
+                `⏱️ 耗时: ${elapsedSeconds}秒\n` +
+                `📝 错误信息: ${result}`;
       await DiscordRequest(`channels/${channelId}/messages`, {
         method: 'POST',
         body: {
@@ -169,20 +210,18 @@ export async function sendTaskCallbackToDiscord(taskId, result, isError = false)
         },
       });
     } else {
-      // 如果没有消息ID，发送普通消息并@用户
-      await DiscordRequest(`channels/${channelId}/messages`, {
-        method: 'POST',
-        body: {
-          content,
-        },
-      });
+      const filePath = result.trim();
+      content = `✅ <@${userId}> 任务执行完成！\n` +
+                `⏱️ 耗时: ${elapsedSeconds}秒\n` +
+                `📎 已为你生成文件，请查收附件。`;
+  
+      await sendDiscordMessageWithFile(channelId, messageId, content, filePath);
     }
-
     // 清理任务状态
     taskStatus.delete(taskId);
   } catch (error) {
     console.error('发送Discord回调消息失败:', error);
-    // 尝试发送到频道（不带回复）
+    // 尝试仅发送文字消息（不带附件）
     try {
       await DiscordRequest(`channels/${channelId}/messages`, {
         method: 'POST',
@@ -319,7 +358,8 @@ export async function handleRemoteServiceCallback(callbackData) {
   const callbackToken = callbackData.callbackToken;
   const status = callbackData.status;
   const taskType = callbackData.taskType;
-  const result = callbackData.data;
+  const data = callbackData.data;
+  const filePath = callbackData.filePath;
   const error = callbackData.message;
   
   if (!callbackToken) {
@@ -336,15 +376,12 @@ export async function handleRemoteServiceCallback(callbackData) {
 
   // 处理任务完成的情况
   if (status === 'success') {
-    await sendTaskCallbackToDiscord(callbackToken, result, false);
+    await sendTaskCallbackToDiscord(callbackToken, filePath, false);
   } else if (status === 'failed') {
     await sendTaskCallbackToDiscord(callbackToken, error || { message: '任务执行失败' }, true);
-  } else if (status) {
+  } else {
     // 如果有其他状态，记录日志
     console.log(`任务 ${callbackToken} 状态: ${status}`);
-  } else {
-    // 如果没有status字段，假设是成功的结果
-    await sendTaskCallbackToDiscord(callbackToken, result, false);
   }
 }
 

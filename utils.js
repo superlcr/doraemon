@@ -1,6 +1,24 @@
 import 'dotenv/config';
 import { fetch, ProxyAgent, setGlobalDispatcher } from 'undici';
 
+/**
+ * 配置代理（如果启用）
+ * 根据环境变量 USE_PROXY 决定是否使用代理
+ * 代理地址从 PROXY_URL 环境变量读取，默认 'http://127.0.0.1:7897'
+ */
+export function configureProxy() {
+  const useProxy = process.env.USE_PROXY === 'true' || process.env.USE_PROXY === '1';
+  
+  if (useProxy) {
+    const proxyUrl = process.env.PROXY_URL || 'http://127.0.0.1:7897';
+    const proxyAgent = new ProxyAgent(proxyUrl);
+    setGlobalDispatcher(proxyAgent);
+    return true;
+  }
+  
+  return false;
+}
+
 export async function DiscordRequest(endpoint, options, retries = 3) {
   // append endpoint to root API URL
   const url = 'https://discord.com/api/v10/' + endpoint;
@@ -21,8 +39,8 @@ export async function DiscordRequest(endpoint, options, retries = 3) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
 
-      const proxyAgent = new ProxyAgent('http://127.0.0.1:7897');
-      setGlobalDispatcher(proxyAgent);
+      // 配置代理（如果启用）
+      configureProxy();
 
       const res = await fetch(url, {
         headers: {
