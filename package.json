@@ -9,19 +9,21 @@
     "node": ">=18.x"
   },
   "scripts": {
-    "start": "tsgo && bun app.ts",
-    "register": "tsgo && bun register.ts"
+    "lint": "oxlint --max-warnings=0 && tsgo --noEmit",
+    "start": "bun lint && bun app.ts",
+    "register": "bun lint && bun register.ts"
   },
   "author": "Shay DeWael",
   "license": "MIT",
   "dependencies": {
+    "@google/genai": "^1.33.0",
     "discord-interactions": "^4.0.0",
     "dotenv": "^16.0.3",
     "express": "^4.18.2"
   },
   "devDependencies": {
     "@typescript/native-preview": "^7.0.0-dev.20251216.1",
-    "@google/genai": "^1.33.0",
-    "@types/express": "^5.0.6"
+    "@types/express": "^5.0.6",
+    "oxlint": "^1.33.0"
   }
 }
