@@ -6,5 +6,4 @@ if (!APP_ID) {
   console.error("Missing APP_ID in environment variables");
   process.exit(1);
 }
-
 InstallGlobalCommands(APP_ID, ALL_COMMANDS);

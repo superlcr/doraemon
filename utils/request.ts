@@ -1,7 +1,10 @@
 import "dotenv/config";
 import { SlashCommand } from "./slash_command";
 
-export async function DiscordRequest(endpoint: string, options: Record<string, any> = {}) {
+export async function DiscordRequest(
+  endpoint: string,
+  options: Record<string, any> = {}
+) {
   // append endpoint to root API URL
   const url = "https://discord.com/api/v10/" + endpoint;
 
@@ -12,7 +15,8 @@ export async function DiscordRequest(endpoint: string, options: Record<string, a
     headers: {
       Authorization: `Bot ${process.env.DISCORD_TOKEN}`,
       "Content-Type": "application/json; charset=UTF-8",
-      "User-Agent": "DiscordBot (https://github.com/discord/discord-example-app, 1.0.0)",
+      "User-Agent":
+        "DiscordBot (https://github.com/discord/discord-example-app, 1.0.0)",
     },
     ...options,
   });
@@ -26,7 +30,10 @@ export async function DiscordRequest(endpoint: string, options: Record<string, a
   return res;
 }
 
-export async function InstallGlobalCommands(appId: string, commands: SlashCommand[]) {
+export async function InstallGlobalCommands(
+  appId: string,
+  commands: SlashCommand[]
+) {
   // API endpoint to overwrite global commands
   const endpoint = `applications/${appId}/commands`;
 
