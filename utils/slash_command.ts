@@ -118,7 +118,7 @@ export abstract class SlashCommand {
 
   readonly metadata: SlashCommandMetadata;
 
-  abstract handle(interaction: Interaction): InteractionResponse;
+  abstract handle(interaction: Interaction): Promise<InteractionResponse>;
 
   protected listen(component_ids: string[]) {
     this._component_ids.push(...component_ids);
