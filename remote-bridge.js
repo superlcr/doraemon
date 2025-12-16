@@ -5,32 +5,32 @@ import undici from 'undici';
 import fs from 'fs/promises';
 
 const { fetch, FormData } = undici;
-// File 是 Node.js 18+ 的全局 API，不需要从 undici 导入
+// File is a global API in Node.js 18+, no need to import from undici
 
 /**
- * 远程服务桥接模块
- * 用于通过Discord消息触发远程服务执行任务，并在完成后回调Discord
+ * Remote service bridge module
+ * Used to trigger remote service to execute tasks through Discord messages, and callback to Discord after completion
  */
 
-// 远程服务配置
+// Remote service configuration
 const REMOTE_SERVICE_URL = process.env.REMOTE_SERVICE_URL || '';
 const REMOTE_SERVICE_API_KEY = process.env.REMOTE_SERVICE_API_KEY || '';
 const REMOTE_SERVICE_CALLBACK_URL = process.env.REMOTE_SERVICE_CALLBACK_URL || '';
 
-// 存储任务状态，用于跟踪任务执行情况
+// Store task status for tracking task execution
 const taskStatus = new Map(); // taskId -> { channelId, messageId, userId, startTime }
 
 /**
- * 调用Discord webhook（用于interaction followup消息）
+ * Call Discord webhook (for interaction followup messages)
  * @param {string} url - Discord webhook URL
- * @param {object} options - fetch选项
- * @returns {Promise<Response>} fetch响应
+ * @param {object} options - fetch options
+ * @returns {Promise<Response>} fetch response
  */
 async function discordWebhookRequest(url, options = {}) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-  // 配置代理（如果启用）
+  // Configure proxy (if enabled)
   configureProxy();
 
   try {
@@ -53,21 +53,21 @@ async function discordWebhookRequest(url, options = {}) {
 }
 
 /**
- * 发送带本地文件附件的Discord消息（可选地回复某条消息）
- * @param {string} channelId - 频道ID
- * @param {string|null} messageId - 要回复的消息ID（可选）
- * @param {string} content - 文本内容
- * @param {string} filePath - 本地文件路径
+ * Send Discord message with local file attachment (optionally reply to a message)
+ * @param {string} channelId - Channel ID
+ * @param {string|null} messageId - Message ID to reply to (optional)
+ * @param {string} content - Text content
+ * @param {string} filePath - Local file path
  */
 async function sendDiscordMessageWithFile(channelId, messageId, content, filePath) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-  // 配置代理（如果启用）
+  // Configure proxy (if enabled)
   configureProxy();
 
   try {
-    // 读取本地文件
+    // Read local file
     const fileBuffer = await fs.readFile(filePath);
     const fileName = filePath.split('/').pop() || 'file.dat';
 
@@ -98,7 +98,7 @@ async function sendDiscordMessageWithFile(channelId, messageId, content, filePat
 
     if (!res.ok) {
       const errorText = await res.text();
-      throw new Error(`发送带文件的消息失败: ${res.status} ${errorText}`);
+      throw new Error(`Failed to send message with file: ${res.status} ${errorText}`);
     }
 
     return res;
@@ -109,29 +109,29 @@ async function sendDiscordMessageWithFile(channelId, messageId, content, filePat
 }
 
 /**
- * 调用远程服务触发任务执行
- * @param {string} taskType - 任务类型
- * @param {object} taskParams - 任务参数
- * @param {string} callbackToken - 回调token，用于标识任务
- * @returns {Promise<object>} 远程服务响应
+ * Call remote service to trigger task execution
+ * @param {string} taskType - Task type
+ * @param {object} taskParams - Task parameters
+ * @param {string} callbackToken - Callback token, used to identify task
+ * @returns {Promise<object>} Remote service response
  */
 export async function triggerRemoteTask(taskType, taskParams = {}, callbackToken) {
   if (!REMOTE_SERVICE_URL) {
-    throw new Error('REMOTE_SERVICE_URL 环境变量未设置');
+    throw new Error('REMOTE_SERVICE_URL environment variable is not set');
   }
 
   const taskId = callbackToken;
   
-  // 从 taskParams 中提取用户输入的文本和其他参数
+  // Extract user input text and other parameters from taskParams
   const userMessage = taskParams.userMessage || '';
   const pptText = userMessage || taskParams.ppt_text || '';
   const pptStyle = taskParams.ppt_style || 'black';
   
-  // 构建任务参数，优先使用提取的值，然后合并其他参数
+  // Build task parameters, prioritize extracted values, then merge other parameters
   const finalTaskParams = {
-    ...taskParams, // 先展开所有传入的参数
-    ppt_text: pptText, // 覆盖 ppt_text（如果 userMessage 有值，优先使用）
-    ppt_style: pptStyle, // 设置默认样式
+    ...taskParams, // First expand all passed parameters
+    ppt_text: pptText, // Override ppt_text (if userMessage has value, use it first)
+    ppt_style: pptStyle, // Set default style
   };
   
   const payload = {
@@ -152,7 +152,7 @@ export async function triggerRemoteTask(taskType, taskParams = {}, callbackToken
   try {
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒超时
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
     // const response = await fetch(REMOTE_SERVICE_URL + '/api/discord/hello', {
     const response = await fetch(REMOTE_SERVICE_URL + '/api/discord/create-task', {
@@ -166,27 +166,27 @@ export async function triggerRemoteTask(taskType, taskParams = {}, callbackToken
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`远程服务请求失败: ${response.status} ${errorText}`);
+      throw new Error(`Remote service request failed: ${response.status} ${errorText}`);
     }
 
     const result = await response.json();
     return { taskId, ...result };
   } catch (error) {
-    console.error('调用远程服务失败:', error);
+    console.error('Failed to call remote service:', error);
     throw error;
   }
 }
 
 /**
- * 发送任务回调消息到Discord（回复"任务已启动"的消息）
- * @param {string} taskId - 任务ID
- * @param {object} result - 任务执行结果
- * @param {boolean} isError - 是否为错误结果
+ * Send task callback message to Discord (reply to "task started" message)
+ * @param {string} taskId - Task ID
+ * @param {object} result - Task execution result
+ * @param {boolean} isError - Whether it's an error result
  */
 export async function sendTaskCallbackToDiscord(taskId, result, isError = false) {
   const taskInfo = taskStatus.get(taskId);
   if (!taskInfo) {
-    console.error(`未找到任务 ${taskId} 的信息`);
+    console.error(`Task ${taskId} information not found`);
     return;
   }
 
@@ -197,9 +197,8 @@ export async function sendTaskCallbackToDiscord(taskId, result, isError = false)
   let content;
   try {
     if (isError) {
-      content = `❌ <@${userId}> 任务执行失败！\n` +
-                `⏱️ 耗时: ${elapsedSeconds}秒\n` +
-                `📝 错误信息: ${result}`;
+      content = `❌ <@${userId}> Video generation failed.\n` +
+                `⏱️ Elapsed time: ${elapsedSeconds} seconds\n`;
       await DiscordRequest(`channels/${channelId}/messages`, {
         method: 'POST',
         body: {
@@ -211,17 +210,17 @@ export async function sendTaskCallbackToDiscord(taskId, result, isError = false)
       });
     } else {
       const filePath = result.trim();
-      content = `✅ <@${userId}> 任务执行完成！\n` +
-                `⏱️ 耗时: ${elapsedSeconds}秒\n` +
-                `📎 已为你生成文件，请查收附件。`;
+      content = `✅ Great job <@${userId}>! Your task is done.\n` +
+                `⏱️ Time spent: ${elapsedSeconds}s\n` +
+                `📎 Check out the generated file attached above.`;
   
       await sendDiscordMessageWithFile(channelId, messageId, content, filePath);
     }
-    // 清理任务状态
+    // Clean up task status
     taskStatus.delete(taskId);
   } catch (error) {
-    console.error('发送Discord回调消息失败:', error);
-    // 尝试仅发送文字消息（不带附件）
+    console.error('Failed to send Discord callback message:', error);
+    // Try to send text message only (without attachment)
     try {
       await DiscordRequest(`channels/${channelId}/messages`, {
         method: 'POST',
@@ -231,54 +230,54 @@ export async function sendTaskCallbackToDiscord(taskId, result, isError = false)
       });
       taskStatus.delete(taskId);
     } catch (fallbackError) {
-      console.error('发送Discord消息失败:', fallbackError);
+      console.error('Failed to send Discord message:', fallbackError);
     }
   }
 }
 
 /**
- * 处理Discord命令，触发远程任务
- * @param {object} interactionData - Discord交互数据（完整的body对象）
- * @param {object} res - Express响应对象
- * @returns {Promise<object>} Discord响应
+ * Handle Discord command, trigger remote task
+ * @param {object} interactionData - Discord interaction data (complete body object)
+ * @param {object} res - Express response object
+ * @returns {Promise<object>} Discord response
  */
 export async function handleRemoteTaskCommand(interactionData, res) {
   const { id, channel_id, member, data } = interactionData;
   const userId = member?.user?.id;
   const channelId = channel_id;
-  const taskType = data?.name || 'default'; // 使用命令名称作为任务类型
+  const taskType = data?.name || 'default'; // Use command name as task type
 
-  // 提取用户输入的文本（从命令选项中获取）
+  // Extract user input text (from command options)
   const userMessage = data?.options?.find(opt => opt.name === 'message')?.value || '';
 
-  // 生成任务ID
+  // Generate task ID
   const taskId = generateTaskId();
 
   try {
-    // 立即响应Discord，表示命令已收到
+    // Immediately respond to Discord, indicating command received
     res.send({
       type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
     });
 
-    // 调用远程服务，传递用户输入的文本
+    // Call remote service, pass user input text
     const response = await triggerRemoteTask(taskType, { userId, userMessage }, taskId);
     console.log('handleRemoteTaskCommand:triggerRemoteTask: response', response);
     
-    // 判断远程服务是否返回"任务已启动"（支持多种响应格式）
+    // Check if remote service returns "task started" (supports multiple response formats)
     const isTaskStarted = response.status === 'success'
 
-    // 使用 interaction token 发送 followup 消息
+    // Use interaction token to send followup message
     const interactionToken = interactionData.token;
     
     if (isTaskStarted) {
-      // 如果远程服务返回"任务已启动"，发送消息到Discord
+      // If remote service returns "task started", send message to Discord
       try {
         const messageResponse = await discordWebhookRequest(
           `https://discord.com/api/v10/webhooks/${process.env.APP_ID}/${interactionToken}?wait=true`,
           {
             method: 'POST',
             body: {
-              content: '任务已启动',
+              content: `Generating video for <@${userId}>, please wait...`,
             },
           }
         );
@@ -287,7 +286,7 @@ export async function handleRemoteTaskCommand(interactionData, res) {
           const messageData = await messageResponse.json();
           const messageId = messageData.id;
 
-          // 存储任务信息，包括消息ID
+          // Store task information, including message ID
           taskStatus.set(taskId, {
             channelId,
             messageId,
@@ -295,18 +294,18 @@ export async function handleRemoteTaskCommand(interactionData, res) {
             startTime: Date.now(),
           });
 
-          console.log(`任务 ${taskId} 已启动，消息ID: ${messageId}`);
+          console.log(`Task ${taskId} started, message ID: ${messageId}`);
         } else {
           const errorText = await messageResponse.text();
-          console.error('发送"任务已启动"消息失败:', errorText);
-          throw new Error('无法发送"任务已启动"消息');
+          console.error('Failed to send "task started" message:', errorText);
+          throw new Error('Unable to send "task started" message');
         }
       } catch (error) {
-        console.error('发送消息失败:', error);
+        console.error('Failed to send message:', error);
         throw error;
       }
     } else {
-      // 如果远程服务立即返回结果（不是异步任务），直接处理
+      // If remote service immediately returns result (not async task), handle directly
       const resultContent = response.message;
       const messageResponse = await discordWebhookRequest(
         `https://discord.com/api/v10/webhooks/${process.env.APP_ID}/${interactionToken}?wait=true`,
@@ -329,20 +328,20 @@ export async function handleRemoteTaskCommand(interactionData, res) {
       }
     }
   } catch (error) {
-    console.error('处理远程任务命令失败:', error);
-    // 发送错误消息
+    console.error('Failed to handle remote task command:', error);
+    // Send error message
     try {
       await discordWebhookRequest(
         `https://discord.com/api/v10/webhooks/${process.env.APP_ID}/${interactionData.token}`,
         {
           method: 'POST',
           body: {
-            content: `❌ 执行失败: ${error.message}`,
+            content: `❌ Execution failed: ${error.message}`,
           },
         }
       );
     } catch (sendError) {
-      console.error('发送错误消息失败:', sendError);
+      console.error('Failed to send error message:', sendError);
     }
   }
 
@@ -350,11 +349,11 @@ export async function handleRemoteTaskCommand(interactionData, res) {
 }
 
 /**
- * 处理远程服务的webhook回调
- * @param {object} callbackData - 回调数据
+ * Handle remote service webhook callback
+ * @param {object} callbackData - Callback data
  */
 export async function handleRemoteServiceCallback(callbackData) {
-  // 支持多种格式的回调数据
+  // Support multiple callback data formats
   const callbackToken = callbackData.callbackToken;
   const status = callbackData.status;
   const taskType = callbackData.taskType;
@@ -363,61 +362,61 @@ export async function handleRemoteServiceCallback(callbackData) {
   const error = callbackData.message;
   
   if (!callbackToken) {
-    console.error('回调数据中缺少 callbackToken/taskId/token');
-    console.error('收到的回调数据:', callbackData);
+    console.error('Missing callbackToken/taskId/token in callback data');
+    console.error('Received callback data:', callbackData);
     return;
   }
 
   const taskInfo = taskStatus.get(callbackToken);
   if (!taskInfo) {
-    console.error(`未找到任务 ${callbackToken} 的信息`);
+    console.error(`Task ${callbackToken} information not found`);
     return;
   }
 
-  // 处理任务完成的情况
+  // Handle task completion case
   if (status === 'success') {
     await sendTaskCallbackToDiscord(callbackToken, filePath, false);
   } else if (status === 'failed') {
-    await sendTaskCallbackToDiscord(callbackToken, error || { message: '任务执行失败' }, true);
+    await sendTaskCallbackToDiscord(callbackToken, error || { message: 'Task execution failed' }, true);
   } else {
-    // 如果有其他状态，记录日志
-    console.log(`任务 ${callbackToken} 状态: ${status}`);
+    // If there are other statuses, log
+    console.log(`Task ${callbackToken} status: ${status}`);
   }
 }
 
 /**
- * 生成唯一的任务ID
- * @returns {string} 任务ID
+ * Generate unique task ID
+ * @returns {string} Task ID
  */
 function generateTaskId() {
   return `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
 /**
- * 获取任务状态
- * @param {string} taskId - 任务ID
- * @returns {object|null} 任务状态信息
+ * Get task status
+ * @param {string} taskId - Task ID
+ * @returns {object|null} Task status information
  */
 export function getTaskStatus(taskId) {
   return taskStatus.get(taskId) || null;
 }
 
 /**
- * 清理过期的任务状态（超过24小时的任务）
+ * Clean up expired task status (tasks older than 24 hours)
  */
 export function cleanupExpiredTasks() {
   const now = Date.now();
-  const expireTime = 24 * 60 * 60 * 1000; // 24小时
+  const expireTime = 24 * 60 * 60 * 1000; // 24 hours
 
   for (const [taskId, taskInfo] of taskStatus.entries()) {
     if (now - taskInfo.startTime > expireTime) {
       taskStatus.delete(taskId);
-      console.log(`清理过期任务: ${taskId}`);
+      console.log(`Cleaned up expired task: ${taskId}`);
     }
   }
 }
 
-// 定期清理过期任务（每小时执行一次）
+// Periodically clean up expired tasks (execute once per hour)
 if (typeof setInterval !== 'undefined') {
   setInterval(cleanupExpiredTasks, 60 * 60 * 1000);
 }

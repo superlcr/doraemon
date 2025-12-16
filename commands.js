@@ -2,22 +2,22 @@ import 'dotenv/config';
 import { getRPSChoices } from './game.js';
 import { capitalize, InstallGlobalCommands } from './utils.js';
 
-// 检查必要的环境变量
+// Check required environment variables
 if (!process.env.DISCORD_TOKEN) {
-  console.error('❌ 错误: DISCORD_TOKEN 环境变量未设置！');
-  console.error('请在 .env 文件中配置 DISCORD_TOKEN（从 Discord 开发者门户获取 Bot Token）');
+  console.error('❌ Error: DISCORD_TOKEN environment variable is not set!');
+  console.error('Please configure DISCORD_TOKEN in .env file (get Bot Token from Discord Developer Portal)');
   process.exit(1);
 }
 
 if (!process.env.APP_ID) {
-  console.error('❌ 错误: APP_ID 环境变量未设置！');
-  console.error('请在 .env 文件中配置 APP_ID（从 Discord 开发者门户获取 Application ID）');
+  console.error('❌ Error: APP_ID environment variable is not set!');
+  console.error('Please configure APP_ID in .env file (get Application ID from Discord Developer Portal)');
   process.exit(1);
 }
 
-console.log('✅ 环境变量检查通过');
+console.log('✅ Environment variables check passed');
 console.log('APP_ID:', process.env.APP_ID);
-console.log('DISCORD_TOKEN 长度:', process.env.DISCORD_TOKEN?.length || 0);
+console.log('DISCORD_TOKEN length:', process.env.DISCORD_TOKEN?.length || 0);
 
 // Get the game choices from game.js
 function createCommandChoices() {
@@ -61,15 +61,15 @@ const CHALLENGE_COMMAND = {
   contexts: [0, 2],
 };
 
-// PPT command - 触发远程PPT生成任务
+// PPT command - Trigger remote PPT generation task
 const PPT_COMMAND = {
   name: 'ppt',
-  description: '触发远程PPT生成任务',
+  description: 'Trigger remote PPT generation task',
   options: [
     {
-      type: 3, // STRING 类型，支持长文本
+      type: 3, // STRING type, supports long text
       name: 'message',
-      description: '要发送的消息内容',
+      description: 'Message content to send',
       required: true,
     },
   ],
@@ -78,15 +78,15 @@ const PPT_COMMAND = {
   contexts: [0, 1, 2],
 };
 
-// Remote task command - 触发远程服务任务（通用）
+// Remote task command - Trigger remote service task (generic)
 const REMOTE_TASK_COMMAND = {
   name: 'remote-task',
-  description: '触发远程服务执行任务',
+  description: 'Trigger remote service to execute task',
   options: [
     {
       type: 3,
       name: 'task-type',
-      description: '任务类型',
+      description: 'Task type',
       required: false,
     },
   ],

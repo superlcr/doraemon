@@ -21,11 +21,11 @@ const activeGames = {};
 
 // Check if PUBLIC_KEY is set
 if (!process.env.PUBLIC_KEY) {
-  console.error('❌ 错误: PUBLIC_KEY 环境变量未设置！');
-  console.error('请在 .env 文件中配置 PUBLIC_KEY（从 Discord 开发者门户获取）');
+  console.error('❌ Error: PUBLIC_KEY environment variable is not set!');
+  console.error('Please configure PUBLIC_KEY in .env file (get it from Discord Developer Portal)');
   process.exit(1);
 } else {
-  console.log('✅ PUBLIC_KEY 已配置');
+  console.log('✅ PUBLIC_KEY configured');
 }
 
 // Interaction handler function
@@ -114,33 +114,33 @@ const handleInteraction = async function (req, res) {
     }
 
 
-    // "ppt" command - 触发远程任务（PPT生成任务）
+    // "ppt" command - Trigger remote task (PPT generation task)
     if (name === 'ppt') {
       try {
         await handleRemoteTaskCommand(body, res);
-        return; // handleRemoteTaskCommand 已经发送了响应
+        return; // handleRemoteTaskCommand has already sent the response
       } catch (error) {
-        console.error('处理远程任务命令失败:', error);
+        console.error('Failed to handle remote task command:', error);
         return res.send({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
-            content: `❌ 执行失败: ${error.message}`,
+            content: `❌ Execution failed: ${error.message}`,
           },
         });
       }
     }
 
-    // "remote-task" command - 触发远程任务（通用）
+    // "remote-task" command - Trigger remote task (generic)
     if (name === 'remote-task') {
       try {
         await handleRemoteTaskCommand(body, res);
-        return; // handleRemoteTaskCommand 已经发送了响应
+        return; // handleRemoteTaskCommand has already sent the response
       } catch (error) {
-        console.error('处理远程任务命令失败:', error);
+        console.error('Failed to handle remote task command:', error);
         return res.send({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
-            content: `❌ 执行失败: ${error.message}`,
+            content: `❌ Execution failed: ${error.message}`,
           },
         });
       }
@@ -253,15 +253,15 @@ const handleInteraction = async function (req, res) {
 
 // Error handler for signature verification failures
 const signatureErrorHandler = (err, req, res, next) => {
-  console.error('错误详情:', err);
+  console.error('Error details:', err);
   if (err.status === 401 || res.statusCode === 401) {
-    console.error('❌ 签名验证失败 (401 Unauthorized)');
-    console.error('可能的原因:');
-    console.error('  1. PUBLIC_KEY 环境变量不正确');
-    console.error('  2. Discord 开发者门户中的交互端点 URL 配置错误');
-    console.error('  3. ngrok URL 已更改，但 Discord 配置未更新');
-    console.error('  4. 请求被中间件修改');
-    console.error('当前 PUBLIC_KEY 长度:', process.env.PUBLIC_KEY?.length || 0);
+    console.error('❌ Signature verification failed (401 Unauthorized)');
+    console.error('Possible reasons:');
+    console.error('  1. PUBLIC_KEY environment variable is incorrect');
+    console.error('  2. Interaction endpoint URL in Discord Developer Portal is misconfigured');
+    console.error('  3. ngrok URL has changed but Discord configuration is not updated');
+    console.error('  4. Request was modified by middleware');
+    console.error('Current PUBLIC_KEY length:', process.env.PUBLIC_KEY?.length || 0);
     if (!res.headersSent) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
@@ -272,23 +272,23 @@ const signatureErrorHandler = (err, req, res, next) => {
 // Wrapper for verifyKeyMiddleware with better error handling
 const verifyKeyWithLogging = (publicKey) => {
   return (req, res, next) => {
-    // console.log(`收到 ${req.path} 请求`);
-    // console.log('请求头:', {
-    //   'x-signature-ed25519': req.headers['x-signature-ed25519'] ? '存在' : '缺失',
-    //   'x-signature-timestamp': req.headers['x-signature-timestamp'] ? '存在' : '缺失',
+    // console.log(`Received ${req.path} request`);
+    // console.log('Request headers:', {
+    //   'x-signature-ed25519': req.headers['x-signature-ed25519'] ? 'present' : 'missing',
+    //   'x-signature-timestamp': req.headers['x-signature-timestamp'] ? 'present' : 'missing',
     //   'content-type': req.headers['content-type']
     // });
     
     const middleware = verifyKeyMiddleware(publicKey);
     middleware(req, res, (err) => {
       if (err) {
-        console.error('验证中间件错误:', err);
+        console.error('Verification middleware error:', err);
         return next(err);
       }
-      // 如果验证失败，verifyKeyMiddleware 会直接发送 401 响应
-      // 检查响应是否已发送
+      // If verification fails, verifyKeyMiddleware will directly send 401 response
+      // Check if response has been sent
       if (res.headersSent && res.statusCode === 401) {
-        console.error('❌ 签名验证失败 - 响应已发送 401');
+        console.error('❌ Signature verification failed - 401 response sent');
         return;
       }
       next();
@@ -319,19 +319,19 @@ app.post(
 );
 
 /**
- * 远程服务回调端点（用于接收任务完成通知）
- * 注意：此端点不需要Discord签名验证，需要由远程服务调用
+ * Remote service callback endpoint (for receiving task completion notifications)
+ * Note: This endpoint does not require Discord signature verification, needs to be called by remote service
  */
 app.post('/api/discord/ppt-callback', express.json(), async (req, res) => {
   try {
     const callbackData = req.body;
-    console.log('收到远程服务回调:', callbackData);
+    console.log('Received remote service callback:', callbackData);
     
     await handleRemoteServiceCallback(callbackData);
     
-    res.json({ success: true, message: '回调处理成功' });
+    res.json({ success: true, message: 'Callback processed successfully' });
   } catch (error) {
-    console.error('处理远程服务回调失败:', error);
+    console.error('Failed to process remote service callback:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
