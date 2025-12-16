@@ -9,11 +9,11 @@ export async function DiscordRequest(
   const url = "https://discord.com/api/v10/" + endpoint;
 
   // Stringify payloads
-  if (options.body) options.body = JSON.stringify(options.body);
+  if (options["body"]) options["body"] = JSON.stringify(options["body"]);
   // Use fetch to make requests
   const res = await fetch(url, {
     headers: {
-      Authorization: `Bot ${process.env.DISCORD_TOKEN}`,
+      Authorization: `Bot ${process.env["DISCORD_TOKEN"]}`,
       "Content-Type": "application/json; charset=UTF-8",
       "User-Agent":
         "DiscordBot (https://github.com/discord/discord-example-app, 1.0.0)",

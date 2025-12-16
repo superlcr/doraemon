@@ -1,5 +1,13 @@
-import { InteractionResponseFlags, InteractionResponseType, MessageComponentTypes } from "discord-interactions";
-import { Interaction, InteractionResponse, SlashCommand } from "../utils/slash_command";
+import {
+  InteractionResponseFlags,
+  InteractionResponseType,
+  MessageComponentTypes,
+} from "discord-interactions";
+import {
+  type Interaction,
+  type InteractionResponse,
+  SlashCommand,
+} from "../utils/slash_command";
 
 // Simple test command
 export class TestCommand extends SlashCommand {
@@ -10,7 +18,9 @@ export class TestCommand extends SlashCommand {
     });
   }
 
-  handle(interaction: Interaction): InteractionResponse {
+  override async handle(
+    _interaction: Interaction
+  ): Promise<InteractionResponse> {
     return {
       type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
       data: {
@@ -19,7 +29,7 @@ export class TestCommand extends SlashCommand {
           {
             type: MessageComponentTypes.TEXT_DISPLAY,
             // Fetches a random emoji to send from a helper function
-            content: `hello world`,
+            content: `hello world!!!!`,
           },
         ],
       },

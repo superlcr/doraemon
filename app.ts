@@ -12,9 +12,9 @@ import { SlashCommand } from "./utils/slash_command";
 // Create an express app
 const app = express();
 // Get port, or default to 3000
-const PORT = process.env.PORT || 3000;
+const PORT = process.env["PORT"] || 3000;
 
-const PUBLIC_KEY = process.env.PUBLIC_KEY;
+const PUBLIC_KEY = process.env["PUBLIC_KEY"];
 if (!PUBLIC_KEY) {
   console.error("Missing PUBLIC_KEY in environment variables");
   process.exit(1);
@@ -37,7 +37,7 @@ app.post(
   verifyKeyMiddleware(PUBLIC_KEY),
   async function (req, res) {
     // Interaction id, type and data
-    const { id, type, data } = req.body;
+    const { type, data } = req.body;
 
     /**
      * Handle verification requests
@@ -59,7 +59,7 @@ app.post(
         return res.status(400).json({ error: "unknown command" });
       }
 
-      const response = command.handle(req.body);
+      const response = await command.handle(req.body);
       return res.send(response);
     }
 
