@@ -123,15 +123,15 @@ export async function triggerRemoteTask(taskType, taskParams = {}, callbackToken
   const taskId = callbackToken;
   
   // Extract user input text and other parameters from taskParams
+  const userId = taskParams.userId || '';
   const userMessage = taskParams.userMessage || '';
-  const pptText = userMessage || taskParams.ppt_text || '';
-  const pptStyle = taskParams.ppt_style || 'black';
+  const theme = taskParams.ppt_style;
   
   // Build task parameters, prioritize extracted values, then merge other parameters
   const finalTaskParams = {
-    ...taskParams, // First expand all passed parameters
-    ppt_text: pptText, // Override ppt_text (if userMessage has value, use it first)
-    ppt_style: pptStyle, // Set default style
+    user_id: userId,
+    ppt_text: userMessage,
+    ppt_style: theme,
   };
   
   const payload = {
@@ -212,7 +212,7 @@ export async function sendTaskCallbackToDiscord(taskId, result, isError = false)
       const filePath = result.trim();
       content = `✅ Great job <@${userId}>! Your task is done.\n` +
                 `⏱️ Time spent: ${elapsedSeconds}s\n` +
-                `📎 Check out the generated file attached above.`;
+                `🎥 Check out the generated file attached above.`;
   
       await sendDiscordMessageWithFile(channelId, messageId, content, filePath);
     }
@@ -272,12 +272,17 @@ export async function handleRemoteTaskCommand(interactionData, res) {
     if (isTaskStarted) {
       // If remote service returns "task started", send message to Discord
       try {
+        // Format user message in code block with spoiler for proper folding
+        const formattedUserMessage = userMessage 
+          ? `\`\`\`\n${userMessage}\n\`\`\``
+          : '';
+        
         const messageResponse = await discordWebhookRequest(
           `https://discord.com/api/v10/webhooks/${process.env.APP_ID}/${interactionToken}?wait=true`,
           {
             method: 'POST',
             body: {
-              content: `Generating video for <@${userId}>, please wait...`,
+              content: `🎥 Generating video for <@${userId}>, please wait...\n\n📄 Your input：\n${formattedUserMessage}`,
             },
           }
         );
