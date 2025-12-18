@@ -3,6 +3,9 @@ import { DiscordRequest, configureProxy } from './utils.js';
 import { InteractionResponseType } from 'discord-interactions';
 import undici from 'undici';
 import fs from 'fs/promises';
+import path from 'path';
+import { createWriteStream } from 'fs';
+import { pipeline } from 'stream/promises';
 
 const { fetch, FormData } = undici;
 // File is a global API in Node.js 18+, no need to import from undici
@@ -188,6 +191,55 @@ export async function triggerRemoteTask(taskType, taskParams = {}, callbackToken
   } catch (error) {
     console.error('Failed to call remote service:', error);
     throw error;
+  }
+}
+
+/**
+ * Download file from URL to local path
+ * @param {string} url - File download URL
+ * @param {string} localPath - Local file path to save
+ * @returns {Promise<string>} Local file path
+ */
+async function downloadFile(url, localPath) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes timeout for large files
+
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
+    }
+
+    // Ensure directory exists
+    const dir = path.dirname(localPath);
+    await fs.mkdir(dir, { recursive: true });
+
+    // Stream the file to disk
+    const fileStream = createWriteStream(localPath);
+    await pipeline(response.body, fileStream);
+
+    clearTimeout(timeoutId);
+    console.log(`File downloaded successfully: ${localPath}`);
+    return localPath;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    console.error('Failed to download file:', error);
+    throw error;
+  }
+}
+
+/**
+ * Check if file exists
+ * @param {string} filePath - File path to check
+ * @returns {Promise<boolean>} Whether file exists
+ */
+async function fileExists(filePath) {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -384,7 +436,7 @@ export async function handleRemoteServiceCallback(callbackData) {
   const status = callbackData.status;
   const taskType = callbackData.taskType;
   const data = callbackData.data;
-  const filePath = callbackData.filePath;
+  let filePath = callbackData.filePath;
   const error = callbackData.message;
   
   if (!callbackToken) {
@@ -401,7 +453,41 @@ export async function handleRemoteServiceCallback(callbackData) {
 
   // Handle task completion case
   if (status === 'success') {
-    await sendTaskCallbackToDiscord(callbackToken, filePath, false);
+    try {
+      // Check if filePath exists
+      if (filePath && !(await fileExists(filePath))) {
+        console.log(`File not found at ${filePath}, attempting to download from URL...`);
+        
+        // If file doesn't exist and data field contains download URL, download it
+        if (data) {
+          const downloadUrl = typeof data === 'string' ? data : data.url || data.downloadUrl;
+          
+          if (downloadUrl) {
+            // Generate local file path
+            const fileName = path.basename(filePath) || `task_${callbackToken}_${Date.now()}.mp4`;
+            const localDir = path.join(process.cwd(), 'downloads');
+            const localPath = path.join(localDir, fileName);
+            
+            console.log(`Downloading file from ${downloadUrl} to ${localPath}`);
+            filePath = await downloadFile(downloadUrl, localPath);
+          } else {
+            console.error('No download URL found in data field');
+            await sendTaskCallbackToDiscord(callbackToken, 'File not found and no download URL provided', true);
+            return;
+          }
+        } else {
+          console.error('File not found and no data field provided');
+          await sendTaskCallbackToDiscord(callbackToken, 'File not found and no download URL provided', true);
+          return;
+        }
+      }
+      
+      // Send file to Discord
+      await sendTaskCallbackToDiscord(callbackToken, filePath, false);
+    } catch (error) {
+      console.error('Failed to process file:', error);
+      await sendTaskCallbackToDiscord(callbackToken, `Failed to process file: ${error.message}`, true);
+    }
   } else if (status === 'failed') {
     await sendTaskCallbackToDiscord(callbackToken, error || { message: 'Task execution failed' }, true);
   } else {
