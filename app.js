@@ -114,8 +114,8 @@ const handleInteraction = async function (req, res) {
     }
 
 
-    // "ppt" command - Trigger remote task (PPT generation task)
-    if (name === 'ppt') {
+    // "ppt-video" command - Trigger remote task (PPT generation task)
+    if (name === 'ppt-video') {
       try {
         await handleRemoteTaskCommand(body, res);
         return; // handleRemoteTaskCommand has already sent the response

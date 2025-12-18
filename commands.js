@@ -63,14 +63,87 @@ const CHALLENGE_COMMAND = {
 
 // PPT command - Trigger remote PPT generation task
 const PPT_COMMAND = {
-  name: 'ppt',
+  name: 'ppt-video',
   description: 'Trigger remote PPT generation task',
   options: [
     {
       type: 3, // STRING type, supports long text
-      name: 'message',
+      name: 'text',
       description: 'Message content to send',
       required: true,
+    },
+    {
+      type: 3, // STRING type
+      name: 'theme',
+      description: 'Visual theme style',
+      required: true,
+      choices: [
+        { name: 'Corporate', value: 'corporate' },
+        { name: 'Business', value: 'business' },
+        { name: 'Nord', value: 'nord' },
+        { name: 'Cyberpunk', value: 'cyberpunk' },
+        { name: 'Synthwave', value: 'synthwave' },
+        { name: 'Night', value: 'night' },
+        { name: 'Dracula', value: 'dracula' },
+        { name: 'Cupcake', value: 'cupcake' },
+        { name: 'Pastel', value: 'pastel' },
+        { name: 'Valentine', value: 'valentine' },
+        { name: 'Bumblebee', value: 'bumblebee' },
+        { name: 'Garden', value: 'garden' },
+        { name: 'Forest', value: 'forest' },
+        { name: 'Emerald', value: 'emerald' },
+        { name: 'Aqua', value: 'aqua' },
+        { name: 'Luxury', value: 'luxury' },
+        { name: 'Black', value: 'black' },
+        { name: 'Retro', value: 'retro' },
+        { name: 'Autumn', value: 'autumn' },
+        { name: 'Coffee', value: 'coffee' },
+        { name: 'Halloween', value: 'halloween' },
+        { name: 'Winter', value: 'winter' },
+        { name: 'Light', value: 'light' },
+        { name: 'Dark', value: 'dark' },
+        { name: 'Fantasy', value: 'fantasy' },
+      ],
+    },
+    {
+      type: 3, // STRING type
+      name: 'voice',
+      description: 'Voice/Speaker style',
+      required: true,
+      choices: [
+        {
+          name: 'Professional Male (Recommended)',
+          value: 'male-qn-jingying',
+        },
+        {
+          name: 'Clear Male Voice',
+          value: 'dj_m_chat_0306_05',
+        },
+        {
+          name: 'Monkey King',
+          value: 'houge',
+        },
+        {
+          name: 'Radio Host (Female)',
+          value: 'Stressed_Lady',
+        },
+        {
+          name: 'Sweet Girl',
+          value: 'tianmei',
+        },
+        {
+          name: 'Casual Senior (Female)',
+          value: 'Podcast_girl_platform',
+        },
+        {
+          name: 'Magnetic Male Voice',
+          value: 'audiobook_male_1',
+        },
+        {
+          name: 'Cute Kid',
+          value: 'nvhai',
+        },
+      ],
     },
   ],
   type: 1,

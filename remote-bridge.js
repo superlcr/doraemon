@@ -12,6 +12,18 @@ const { fetch, FormData } = undici;
  * Used to trigger remote service to execute tasks through Discord messages, and callback to Discord after completion
  */
 
+// Voice name mapping
+const VOICE_NAMES = {
+  'male-qn-jingying': 'Professional Male',
+  'dj_m_chat_0306_05': 'Clear Male Voice',
+  'houge': 'Monkey King',
+  'Stressed_Lady': 'Radio Host (Female)',
+  'tianmei': 'Sweet Girl',
+  'Podcast_girl_platform': 'Casual Senior (Female)',
+  'audiobook_male_1': 'Magnetic Male Voice',
+  'nvhai': 'Cute Kid',
+};
+
 // Remote service configuration
 const REMOTE_SERVICE_URL = process.env.REMOTE_SERVICE_URL || '';
 const REMOTE_SERVICE_API_KEY = process.env.REMOTE_SERVICE_API_KEY || '';
@@ -124,14 +136,16 @@ export async function triggerRemoteTask(taskType, taskParams = {}, callbackToken
   
   // Extract user input text and other parameters from taskParams
   const userId = taskParams.userId || '';
-  const userMessage = taskParams.userMessage || '';
-  const theme = taskParams.ppt_style;
+  const text = taskParams.text || '';
+  const theme = taskParams.theme;
+  const voice = taskParams.voice || 'male-qn-jingying';
   
   // Build task parameters, prioritize extracted values, then merge other parameters
   const finalTaskParams = {
     user_id: userId,
-    ppt_text: userMessage,
+    ppt_text: text,
     ppt_style: theme,
+    voice: voice,
   };
   
   const payload = {
@@ -248,7 +262,9 @@ export async function handleRemoteTaskCommand(interactionData, res) {
   const taskType = data?.name || 'default'; // Use command name as task type
 
   // Extract user input text (from command options)
-  const userMessage = data?.options?.find(opt => opt.name === 'message')?.value || '';
+  const text = data?.options?.find(opt => opt.name === 'text')?.value || '';
+  const theme = data?.options?.find(opt => opt.name === 'theme')?.value || '';
+  const voice = data?.options?.find(opt => opt.name === 'voice')?.value || 'male-qn-jingying';
 
   // Generate task ID
   const taskId = generateTaskId();
@@ -260,7 +276,7 @@ export async function handleRemoteTaskCommand(interactionData, res) {
     });
 
     // Call remote service, pass user input text
-    const response = await triggerRemoteTask(taskType, { userId, userMessage }, taskId);
+    const response = await triggerRemoteTask(taskType, { userId, text, theme, voice }, taskId);
     console.log('handleRemoteTaskCommand:triggerRemoteTask: response', response);
     
     // Check if remote service returns "task started" (supports multiple response formats)
@@ -273,16 +289,21 @@ export async function handleRemoteTaskCommand(interactionData, res) {
       // If remote service returns "task started", send message to Discord
       try {
         // Format user message in code block with spoiler for proper folding
-        const formattedUserMessage = userMessage 
-          ? `\`\`\`\n${userMessage}\n\`\`\``
+        const formattedUserMessage = text 
+          ? `\`\`\`\n${text}\n\`\`\``
           : '';
+        
+        // Get voice display name
+        const voiceName = VOICE_NAMES[voice] || voice;
+        // Capitalize theme name
+        const themeName = theme.charAt(0).toUpperCase() + theme.slice(1);
         
         const messageResponse = await discordWebhookRequest(
           `https://discord.com/api/v10/webhooks/${process.env.APP_ID}/${interactionToken}?wait=true`,
           {
             method: 'POST',
             body: {
-              content: `🎥 Generating video for <@${userId}>, please wait...\n\n📄 Your input：\n${formattedUserMessage}`,
+              content: `🎥 Generating video for <@${userId}>, please wait ...\n\n🎨 Theme: ${themeName}    🎤 Voice: ${voiceName}\n📄 Text：\n${formattedUserMessage}`,
             },
           }
         );
