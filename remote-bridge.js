@@ -204,11 +204,30 @@ async function downloadFile(url, localPath) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes timeout for large files
 
+  // Configure proxy (if enabled)
+  configureProxy();
+
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+    });
     
     if (!response.ok) {
-      throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
+      const errorText = await response.text().catch(() => '');
+      
+      // Check if response is a Cloudflare error page
+      const isCloudflareError = errorText.includes('Cloudflare') || 
+                                errorText.includes('cf-error-details') ||
+                                response.status === 530;
+      
+      if (isCloudflareError) {
+        throw new Error(`Download link may be expired or invalid (Cloudflare error ${response.status}). Please check the download URL or regenerate the file.`);
+      }
+      
+      throw new Error(`Failed to download file: ${response.status} ${response.statusText}${errorText ? ` - ${errorText.substring(0, 200)}` : ''}`);
     }
 
     // Ensure directory exists
@@ -224,7 +243,13 @@ async function downloadFile(url, localPath) {
     return localPath;
   } catch (error) {
     clearTimeout(timeoutId);
-    console.error('Failed to download file:', error);
+    // Clean up partially downloaded file if it exists
+    try {
+      await fs.unlink(localPath).catch(() => {});
+    } catch {
+      // Ignore cleanup errors
+    }
+    console.error(`Failed to download file from ${url}:`, error.message);
     throw error;
   }
 }
@@ -464,7 +489,21 @@ export async function handleRemoteServiceCallback(callbackData) {
           
           if (downloadUrl) {
             // Generate local file path
-            const fileName = path.basename(filePath) || `task_${callbackToken}_${Date.now()}.mp4`;
+            // Extract filename from filePath (handle both Unix and Windows paths)
+            let fileName = '';
+            if (filePath) {
+              // Normalize Windows paths by replacing backslashes with forward slashes
+              const normalizedPath = filePath.replace(/\\/g, '/');
+              fileName = path.basename(normalizedPath);
+            }
+            
+            // Fallback to generate filename if extraction failed
+            if (!fileName) {
+              // Try to extract filename from URL or use default
+              const urlMatch = downloadUrl.match(/\/([^\/\?]+)(\?|$)/);
+              fileName = urlMatch ? urlMatch[1] : `task_${callbackToken}_${Date.now()}.mp4`;
+            }
+            
             const localDir = path.join(process.cwd(), 'downloads');
             const localPath = path.join(localDir, fileName);
             
@@ -486,7 +525,9 @@ export async function handleRemoteServiceCallback(callbackData) {
       await sendTaskCallbackToDiscord(callbackToken, filePath, false);
     } catch (error) {
       console.error('Failed to process file:', error);
-      await sendTaskCallbackToDiscord(callbackToken, `Failed to process file: ${error.message}`, true);
+      // Provide user-friendly error message
+      const errorMessage = error.message || 'Unknown error occurred while processing file';
+      await sendTaskCallbackToDiscord(callbackToken, `❌ Failed to download file: ${errorMessage}`, true);
     }
   } else if (status === 'failed') {
     await sendTaskCallbackToDiscord(callbackToken, error || { message: 'Task execution failed' }, true);
