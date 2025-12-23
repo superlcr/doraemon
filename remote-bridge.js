@@ -142,6 +142,7 @@ export async function triggerRemoteTask(taskType, taskParams = {}, callbackToken
   const text = taskParams.text || '';
   const theme = taskParams.theme;
   const voice = taskParams.voice || 'male-qn-jingying';
+  const screen = taskParams.screen || '';
   
   // Build task parameters, prioritize extracted values, then merge other parameters
   const finalTaskParams = {
@@ -149,6 +150,7 @@ export async function triggerRemoteTask(taskType, taskParams = {}, callbackToken
     ppt_text: text,
     ppt_style: theme,
     voice: voice,
+    orientation: screen,
   };
   
   const payload = {
@@ -342,6 +344,7 @@ export async function handleRemoteTaskCommand(interactionData, res) {
   const text = data?.options?.find(opt => opt.name === 'text')?.value || '';
   const theme = data?.options?.find(opt => opt.name === 'theme')?.value || '';
   const voice = data?.options?.find(opt => opt.name === 'voice')?.value || 'male-qn-jingying';
+  const screen = data?.options?.find(opt => opt.name === 'screen')?.value || '16:9';
 
   // Generate task ID
   const taskId = generateTaskId();
@@ -352,8 +355,8 @@ export async function handleRemoteTaskCommand(interactionData, res) {
       type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
     });
 
-    // Call remote service, pass user input text
-    const response = await triggerRemoteTask(taskType, { userId, text, theme, voice }, taskId);
+    // Call remote service, pass user input text and other parameters
+    const response = await triggerRemoteTask(taskType, { userId, text, theme, voice, screen }, taskId);
     console.log('handleRemoteTaskCommand:triggerRemoteTask: response', response);
     
     // Check if remote service returns "task started" (supports multiple response formats)
@@ -374,13 +377,15 @@ export async function handleRemoteTaskCommand(interactionData, res) {
         const voiceName = VOICE_NAMES[voice] || voice;
         // Capitalize theme name
         const themeName = theme.charAt(0).toUpperCase() + theme.slice(1);
+        // Screen orientation label
+        const screenLabel = screen === 'portrait' ? 'Portrait 9:16' : 'Landscape 16:9';
         
         const messageResponse = await discordWebhookRequest(
           `https://discord.com/api/v10/webhooks/${process.env.APP_ID}/${interactionToken}?wait=true`,
           {
             method: 'POST',
             body: {
-              content: `🎥 Generating video for <@${userId}>, please wait ...\n\n🎨 Theme: ${themeName}    🎤 Voice: ${voiceName}\n📄 Text：\n${formattedUserMessage}`,
+              content: `🎥 Generating video for <@${userId}>, please wait ...\n\n🎨 Theme: ${themeName}    🎤 Voice: ${voiceName}    🖥 Screen: ${screenLabel}\n📄 Text：\n${formattedUserMessage}`,
             },
           }
         );

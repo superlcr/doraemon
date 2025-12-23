@@ -63,7 +63,7 @@ const CHALLENGE_COMMAND = {
 
 // PPT command - Trigger remote PPT generation task
 const PPT_COMMAND = {
-  name: 'ppt-video',
+  name: 'dream',
   description: 'Trigger remote PPT generation task',
   options: [
     {
@@ -142,6 +142,22 @@ const PPT_COMMAND = {
         {
           name: '👶 Cute Kid',
           value: 'nvhai',
+        },
+      ],
+    },
+    {
+      type: 3, // STRING type
+      name: 'screen',
+      description: 'Screen orientation (landscape 16:9 or portrait 9:16)',
+      required: true,
+      choices: [
+        {
+          name: '📺 Landscape 16:9',
+          value: 'landscape',
+        },
+        {
+          name: '📱 Portrait 9:16',
+          value: 'portrait',
         },
       ],
     },
